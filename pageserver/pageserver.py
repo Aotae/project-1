@@ -11,6 +11,9 @@
   Change it to serve files if they end with .html or .css, and are
   located in ./pages  (where '.' is the directory from which this
   program is run).
+
+  Used OS and __file__ to find current working directory and where pageserver.py is running from
+  assumming that pageserver.py and config.py never leaves the pageserver folder in the repo this should work.
 """
 
 import config    # Configure from .ini files and command line
