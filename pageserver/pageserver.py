@@ -22,6 +22,8 @@ log = logging.getLogger(__name__)
 
 import socket    # Basic TCP/IP communication on the internet
 import _thread   # Response computation runs concurrently with main program
+import os
+
 
 
 def listen(portnum):
@@ -42,7 +44,7 @@ def listen(portnum):
     return serversocket
 
 
-def serve(sock, func):
+def serve(sock, func, docroot):
     """
     Respond to connections on sock.
     Args:
@@ -56,7 +58,7 @@ def serve(sock, func):
     while True:
         log.info("Attempting to accept a connection on {}".format(sock))
         (clientsocket, address) = sock.accept()
-        _thread.start_new_thread(func, (clientsocket,))
+        _thread.start_new_thread(func, (clientsocket, docroot))
 
 
 ##
@@ -78,21 +80,56 @@ STATUS_NOT_FOUND = "HTTP/1.0 404 Not Found\n\n"
 STATUS_NOT_IMPLEMENTED = "HTTP/1.0 401 Not Implemented\n\n"
 
 
-def respond(sock):
+def respond(sock, docroot):
     """
     This server responds only to GET requests (not PUT, POST, or UPDATE).
     Any valid GET request is answered with an ascii graphic of a cat.
     """
+    file_exists = False
     sent = 0
     request = sock.recv(1024)  # We accept only short requests
     request = str(request, encoding='utf-8', errors='strict')
     log.info("--- Received request ----")
     log.info("Request was {}\n***\n".format(request))
-
+    # Kind of a jank way to get the directory
+    # get the parent of the directory running pageserver.py
+    # this should always be the pageserver folder
+    # so we can actually chdir 
     parts = request.split()
+    os.chdir(os.path.dirname(os.path.abspath(__file__)))
+    log.info(os.getcwd())
+    log.info(parts)
+    parent = os.path.normpath(os.getcwd() + os.sep + os.pardir)
+    log.info(parent)
+    os.chdir(parent+docroot)
+    pages_list = os.listdir()
+    log.info(pages_list)
     if len(parts) > 1 and parts[0] == "GET":
-        transmit(STATUS_OK, sock)
-        transmit(CAT, sock)
+        file_name = parts[1]
+        # will stop at first page that matches the request
+        # all pages in pages should be unique
+        if file_name == '/':
+            transmit(STATUS_OK,sock)
+            transmit(CAT,sock)
+        else:
+            if ".." in file_name or "~" in file_name:
+                transmit(STATUS_FORBIDDEN,sock)
+                transmit("403 Forbidden, special characters .. and ~ not allowed", sock)
+            else:
+                for x in pages_list:
+                    if file_name[1:] == x:
+                        file_exists = True
+                if file_exists:
+                    transmit(STATUS_OK, sock)
+                    f = open(file_name[1:], 'r')
+                    file = f.read()
+                    f.close()
+                    transmit(file,sock)
+                else:
+                    transmit(STATUS_NOT_FOUND, sock)
+                    transmit("404 Not Found, Page not found",sock)
+
+
     else:
         log.info("Unhandled request: {}".format(request))
         transmit(STATUS_NOT_IMPLEMENTED, sock)
@@ -134,16 +171,17 @@ def get_options():
 
     return options
 
-
 def main():
     options = get_options()
     port = options.PORT
+    docroot = options.DOCROOT
+    log.info(os.getcwd())
     if options.DEBUG:
         log.setLevel(logging.DEBUG)
     sock = listen(port)
     log.info("Listening on port {}".format(port))
     log.info("Socket is {}".format(sock))
-    serve(sock, respond)
+    serve(sock, respond, docroot)
 
 
 if __name__ == "__main__":
