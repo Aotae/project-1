@@ -59,8 +59,6 @@ def serve(sock, func, docroot):
         log.info("Attempting to accept a connection on {}".format(sock))
         (clientsocket, address) = sock.accept()
         _thread.start_new_thread(func, (clientsocket, docroot))
-
-
 ##
 # Starter version only serves cat pictures. In fact, only a
 # particular cat picture.  This one.
@@ -96,8 +94,12 @@ def respond(sock, docroot):
     # this should always be the pageserver folder
     # so we can actually chdir 
     parts = request.split()
-    os.chdir(os.path.dirname(os.path.abspath(__file__)))
-    log.info(os.getcwd())
+
+    log.info((os.path.dirname(os.path.abspath(config.__file__))))
+    log.info(os.path.abspath(config.__file__))
+    os.chdir(os.path.dirname(os.path.abspath(config.__file__)))
+    a = os.getcwd()
+    log.info(a)
     log.info(parts)
     parent = os.path.normpath(os.getcwd() + os.sep + os.pardir)
     log.info(parent)
@@ -111,6 +113,7 @@ def respond(sock, docroot):
         if file_name == '/':
             transmit(STATUS_OK,sock)
             transmit(CAT,sock)
+            os.chdir(a)
         else:
             if ".." in file_name or "~" in file_name:
                 transmit(STATUS_FORBIDDEN,sock)
@@ -125,9 +128,12 @@ def respond(sock, docroot):
                     file = f.read()
                     f.close()
                     transmit(file,sock)
+                    log.info(a)
+                    os.chdir(a)
                 else:
                     transmit(STATUS_NOT_FOUND, sock)
                     transmit("404 Not Found, Page not found",sock)
+                    os.chdir(a)
 
 
     else:
@@ -138,7 +144,6 @@ def respond(sock, docroot):
     sock.shutdown(socket.SHUT_RDWR)
     sock.close()
     return
-
 
 def transmit(msg, sock):
     """It might take several sends to get the whole message out"""
@@ -152,7 +157,6 @@ def transmit(msg, sock):
 # Run from command line
 #
 ###
-
 
 def get_options():
     """
@@ -182,7 +186,6 @@ def main():
     log.info("Listening on port {}".format(port))
     log.info("Socket is {}".format(sock))
     serve(sock, respond, docroot)
-
 
 if __name__ == "__main__":
     main()
