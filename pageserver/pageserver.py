@@ -106,7 +106,8 @@ def respond(sock, docroot):
     log.info(parts)
     parent = os.path.normpath(os.getcwd() + os.sep + os.pardir)
     log.info(parent)
-    os.chdir(parent+docroot)
+    os.chdir(parent+os.sep+docroot)
+    log.info(os.getcwd())
     pages_list = os.listdir()
     log.info(pages_list)
     if len(parts) > 1 and parts[0] == "GET":
@@ -122,9 +123,7 @@ def respond(sock, docroot):
                 transmit(STATUS_FORBIDDEN,sock)
                 transmit("403 Forbidden, special characters .. and ~ not allowed", sock)
             else:
-                for x in pages_list:
-                    if file_name[1:] == x:
-                        file_exists = True
+                file_exists = os.path.exists(file_name[1:])
                 if file_exists:
                     transmit(STATUS_OK, sock)
                     f = open(file_name[1:], 'r')
